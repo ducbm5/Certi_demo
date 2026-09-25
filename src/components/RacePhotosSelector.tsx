@@ -62,7 +62,7 @@ export const RacePhotosSelector: React.FC<RacePhotosSelectorProps> = ({
           </div>
           <div>
             <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-              <span>Ảnh thi đấu từ hệ thống (BIB {runner.bib})</span>
+              <span>Ảnh thi đấu của bạn (BIB {runner.bib})</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-50 text-[#9F224E] border border-rose-200/80 font-bold">
                 {photos.length} ảnh
               </span>

@@ -864,8 +864,8 @@ export const CertificateCanvas: React.FC<CertificateCanvasProps> = ({
                 ? 'Đang xuất ảnh...'
                 : viewMode === 'collage'
                 ? photoRatio === '3:5'
-                  ? 'Tải ảnh ghép HD (1728×2400)'
-                  : 'Tải ảnh ghép HD (3240×2400)'
+                  ? 'Tải ảnh HD (1728×2400)'
+                  : 'Tải ảnh HD (3240×2400)'
                 : 'Tải chứng nhận HD (1080×2400)'}
             </span>
           </button>
