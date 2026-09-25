@@ -1,7 +1,7 @@
 {
   "$schema": "https://marathon-api/v1/race-definition.json",
   "version": "1.0",
-  "exportedAt": "2026-09-25T08:09:35.026Z",
+  "exportedAt": "2026-09-25T08:17:27.920Z",
   "instructions": "Ném file .json này vào thư mục \"public/races/\" trong mã nguồn dự án. Hệ thống sẽ tự động đọc và tạo giải mới.",
   "id": "vnexpress-marathon-grand-tour-nghe-an-2026",
   "slug": "vnexpress-marathon-grand-tour-nghe-an-2026",
