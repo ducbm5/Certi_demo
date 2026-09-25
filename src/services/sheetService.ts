@@ -19,20 +19,67 @@ export const getDirectGoogleDriveImageUrl = (url: string | null | undefined): st
   return url;
 };
 
-export const getCachedRunners = (prefix: string = 'vm_quynhon'): Runner[] | null => {
-  const cacheKey = `${prefix}_cached_runners`;
+export const CACHE_TTL_MS = 30 * 60 * 1000; // 30 phút (1,800,000 ms)
+
+interface CachedRunnersPayload {
+  timestamp: number;
+  runners: Runner[];
+  backgroundUrl?: string | null;
+  logoUrl?: string | null;
+}
+
+export const getCachedRunners = (prefix: string = 'vm_quynhon', ignoreExpiration: boolean = false): Runner[] | null => {
+  const cacheKey = `${prefix}_runners_cache`;
+  const legacyKey = `${prefix}_cached_runners`;
   try {
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+    const raw = localStorage.getItem(cacheKey) || localStorage.getItem(legacyKey);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    // Định dạng mới có timestamp TTL
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Array.isArray(parsed.runners)) {
+      const age = Date.now() - (parsed.timestamp || 0);
+      if (ignoreExpiration || age < CACHE_TTL_MS) {
+        return parsed.runners;
       }
+      return null; // Đã quá 30 phút
+    }
+
+    // Định dạng mảng cũ
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
     }
   } catch (e) {
     console.error('Error reading cached runners:', e);
   }
   return null;
+};
+
+export const getCachedRunnersFull = (prefix: string = 'vm_quynhon', ignoreExpiration: boolean = false): CachedRunnersPayload | null => {
+  const cacheKey = `${prefix}_runners_cache`;
+  try {
+    const raw = localStorage.getItem(cacheKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Array.isArray(parsed.runners)) {
+      const age = Date.now() - (parsed.timestamp || 0);
+      if (ignoreExpiration || age < CACHE_TTL_MS) {
+        return parsed;
+      }
+      return null;
+    }
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return { timestamp: Date.now(), runners: parsed };
+    }
+  } catch {}
+  return null;
+};
+
+export const clearRunnersCache = (prefix: string = 'vm_quynhon') => {
+  try {
+    localStorage.removeItem(`${prefix}_runners_cache`);
+    localStorage.removeItem(`${prefix}_cached_runners`);
+  } catch {}
 };
 
 export const getSavedDataSourceSettings = (prefix: string = 'vm_quynhon'): DataSourceSettings => {
@@ -170,10 +217,24 @@ export const fetchRunnersFromSource = async (
   prefix: string = 'vm_quynhon',
   fallbackRunners: Runner[] = INITIAL_RUNNERS,
   forceRefresh: boolean = false
-): Promise<{ runners: Runner[]; error?: string; backgroundUrl?: string | null; logoUrl?: string | null }> => {
+): Promise<{ runners: Runner[]; error?: string; backgroundUrl?: string | null; logoUrl?: string | null; fromCache?: boolean }> => {
   const cacheKey = `${prefix}_runners_cache`;
   if (settings.type === 'mock' || !settings.url.trim()) {
     return { runners: fallbackRunners };
+  }
+
+  // 1. Kiểm tra Cache 30 phút trong localStorage trước khi gọi mạng/script
+  // Nếu chưa quá 30 phút và không yêu cầu cưỡng chế làm mới (forceRefresh = false), dùng ngay cache!
+  if (!forceRefresh) {
+    const cachedFull = getCachedRunnersFull(prefix, false);
+    if (cachedFull && cachedFull.runners && cachedFull.runners.length > 0) {
+      return {
+        runners: cachedFull.runners,
+        backgroundUrl: cachedFull.backgroundUrl,
+        logoUrl: cachedFull.logoUrl,
+        fromCache: true,
+      };
+    }
   }
 
   try {
@@ -348,25 +409,33 @@ export const fetchRunnersFromSource = async (
       return rawRunner;
     });
 
-    localStorage.setItem(cacheKey, JSON.stringify(formatted));
     const bgUrl = data && data.backgroundUrl ? String(data.backgroundUrl).trim() : null;
     const logoUrl = data && (data.logoUrl || data.logo) ? String(data.logoUrl || data.logo).trim() : null;
+
+    // Lưu vào localStorage kèm timestamp phục vụ TTL 30 phút
+    const payload: CachedRunnersPayload = {
+      timestamp: Date.now(),
+      runners: formatted,
+      backgroundUrl: bgUrl,
+      logoUrl: logoUrl,
+    };
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(payload));
+      localStorage.setItem(`${prefix}_cached_runners`, JSON.stringify(formatted));
+    } catch {}
+
     return { runners: formatted, backgroundUrl: bgUrl, logoUrl };
   } catch (err: any) {
     console.warn('Lỗi khi cập nhật dữ liệu vận động viên từ Google Sheet:', err.message);
     // Kiểm tra bộ nhớ tạm (localStorage)
     try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Nếu người dùng chủ động bấm "Tải lại", hiển thị thông báo nhẹ nhàng.
-          // Nếu là đồng bộ ngầm định kỳ, không hiển thị lỗi gây gián đoạn trải nghiệm người dùng.
-          return {
-            runners: parsed,
-            error: forceRefresh ? `Không thể kết nối đến Google Sheet lúc này, đang dùng ${parsed.length} VĐV trong bộ nhớ tạm.` : undefined,
-          };
-        }
+      const fallbackCached = getCachedRunners(prefix, true);
+      if (fallbackCached && fallbackCached.length > 0) {
+        return {
+          runners: fallbackCached,
+          error: forceRefresh ? `Không thể kết nối đến Google Sheet lúc này, đang dùng ${fallbackCached.length} VĐV trong bộ nhớ tạm.` : undefined,
+          fromCache: true,
+        };
       }
     } catch {
       // ignore
