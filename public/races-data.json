@@ -1,0 +1,106 @@
+[
+  {
+    "id": "nghe-an-2026",
+    "slug": "nghe-an-2026",
+    "code": "NA26",
+    "name": "VnExpress Marathon Grand Tour Nghe An 2026",
+    "shortName": "Grand Tour Nghe An 2026",
+    "city": "TP. Vinh",
+    "province": "Nghệ An",
+    "locationFull": "TP. Vinh, Nghệ An",
+    "date": "13/09/2026",
+    "officialUrl": "https://vm.vnexpress.net/nghe-an-2026",
+    "defaultLogoUrl": "/race_logo.png",
+    "defaultBgUrl": "/NA26.png",
+    "accentColor": "#0369a1",
+    "themeBadgeBg": "bg-sky-50 text-sky-700 border-sky-200/80",
+    "themeDotBg": "bg-sky-600",
+    "storageKeyPrefix": "vm_nghean",
+    "appsScriptUrl": "https://script.google.com/macros/s/AKfycbwwY2MgGaURMrB20UHGVvUZ3INSOrkd8jIQok1JpnDTWMzblecdDOdDTn7qtrbtPPzquw/exec?key=ducbm900966559155",
+    "photosScriptUrl": "https://script.google.com/macros/s/AKfycbyUr1QYj9Eyp60HaDLhXJINbr8Yozt3TXMRlPHpJ7QWhpkK6D4D_ZGMhW5dUerljLT3/exec",
+    "description": "Tra cứu kết quả & Chứng nhận điện tử VnExpress Marathon Grand Tour Nghe An 2026",
+    "placements": {
+      "name": {
+        "id": "name",
+        "label": "Tên Vận Động Viên",
+        "x": 50,
+        "y": 32.84,
+        "fontSize": 58,
+        "color": "#042738",
+        "align": "center",
+        "fontWeight": 800
+      },
+      "distance": {
+        "id": "distance",
+        "label": "Cự ly (VD: 21K, 42K)",
+        "x": 36.5,
+        "y": 36.63,
+        "fontSize": 50,
+        "color": "#042738",
+        "align": "center",
+        "fontWeight": 800
+      },
+      "bib": {
+        "id": "bib",
+        "label": "Số BIB (VD: 90110)",
+        "x": 72.5,
+        "y": 36.63,
+        "fontSize": 50,
+        "color": "#042738",
+        "align": "center",
+        "fontWeight": 800
+      },
+      "chipTime": {
+        "id": "chipTime",
+        "label": "Thời gian Chip Time",
+        "x": 50,
+        "y": 48.2,
+        "fontSize": 95,
+        "color": "#fff100",
+        "align": "center",
+        "fontWeight": 900
+      },
+      "finishTime": {
+        "id": "finishTime",
+        "label": "Finish Time (Gun Time)",
+        "x": 31.5,
+        "y": 54.35,
+        "fontSize": 38,
+        "color": "#ffffff",
+        "align": "left",
+        "fontWeight": 700
+      },
+      "overallRank": {
+        "id": "overallRank",
+        "label": "Hạng Chung cuộc (Overall)",
+        "x": 28.5,
+        "y": 57.95,
+        "fontSize": 38,
+        "color": "#ffffff",
+        "align": "left",
+        "fontWeight": 700
+      },
+      "genderRank": {
+        "id": "genderRank",
+        "label": "Hạng Giới tính (Gender)",
+        "x": 79.5,
+        "y": 57.95,
+        "fontSize": 38,
+        "color": "#ffffff",
+        "align": "left",
+        "fontWeight": 700
+      },
+      "ageGroupRank": {
+        "id": "ageGroupRank",
+        "label": "Hạng Lứa tuổi (Age Group)",
+        "x": 49,
+        "y": 61.5,
+        "fontSize": 38,
+        "color": "#ffffff",
+        "align": "left",
+        "fontWeight": 700
+      }
+    },
+    "createdAt": "2026-09-24T07:25:59.083Z"
+  }
+]
