@@ -81,11 +81,32 @@ export const DEMO_PHOTOS: Record<string, string> = {
   '52535': '/3.jpg',
 };
 
-// Danh sách nhiều ảnh thi đấu cho mỗi VĐV mẫu (để kiểm tra chọn ảnh ngay)
+// Ảnh thi đấu ví dụ cố định cho từng VĐV mẫu (không trộn lẫn)
 export const DEMO_RACE_PHOTOS: Record<string, string[]> = {
-  '90110': ['/1.jpg', '/2.jpg', '/3.jpg'],
-  '61137': ['/2.jpg', '/1.jpg', '/3.jpg'],
-  '52535': ['/3.jpg', '/1.jpg', '/2.jpg'],
+  '90110': ['/1.jpg'],
+  '61137': ['/2.jpg'],
+  '52535': ['/3.jpg'],
 };
+
+/**
+ * Trả về ảnh mẫu chính xác theo BIB hoặc Họ tên VĐV
+ * Phùng Hữu Thanh (90110) -> /1.jpg
+ * Yuki Yokota (61137)     -> /2.jpg
+ * Ilyina Iryna (52535)    -> /3.jpg
+ */
+export function getDemoPhoto(bibOrName?: string | null): string | null {
+  if (!bibOrName) return null;
+  const s = String(bibOrName).trim().toLowerCase();
+  if (s === '90110' || s.includes('phùng hữu thanh') || s.includes('phung huu thanh')) {
+    return '/1.jpg';
+  }
+  if (s === '61137' || s.includes('yuki') || s.includes('yokota')) {
+    return '/2.jpg';
+  }
+  if (s === '52535' || s.includes('ilyina') || s.includes('iryna')) {
+    return '/3.jpg';
+  }
+  return null;
+}
 
 export const INITIAL_RUNNERS: Runner[] = DEMO_RUNNERS;

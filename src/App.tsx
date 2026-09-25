@@ -6,7 +6,7 @@ import { RunnerDetailsCard } from './components/RunnerDetailsCard';
 import { AdminPlacementStudio } from './components/AdminPlacementStudio';
 import { Runner, CertificateConfig, DataSourceSettings } from './types';
 import { Race, RACES, DEFAULT_RACE } from './data/races';
-import { INITIAL_RUNNERS, DEMO_RUNNERS, DEMO_PHOTOS } from './data/mockRunners';
+import { INITIAL_RUNNERS, DEMO_RUNNERS, DEMO_PHOTOS, getDemoPhoto } from './data/mockRunners';
 import {
   fetchAllRaces,
   getLocalRaces,
@@ -86,11 +86,12 @@ export default function App() {
     const cached = getCachedRunners(activeRace.storageKeyPrefix);
     if (cached && cached.length > 0) {
       const first = cached[0];
-      const photoMap = activeRace.demoPhotos || DEMO_PHOTOS;
-      const photo = photoMap[first.bib];
+      const photo = getDemoPhoto(first.bib) || getDemoPhoto(first.name) || (activeRace.demoPhotos || DEMO_PHOTOS)[first.bib];
       return photo ? { ...first, photoUrl: photo } : first;
     }
-    return (activeRace.initialRunners && activeRace.initialRunners[0]) || INITIAL_RUNNERS[0];
+    const def = (activeRace.initialRunners && activeRace.initialRunners[0]) || INITIAL_RUNNERS[0];
+    const photo = getDemoPhoto(def.bib) || getDemoPhoto(def.name);
+    return photo ? { ...def, photoUrl: photo } : def;
   });
   const [isLoadingRunners, setIsLoadingRunners] = useState<boolean>(false);
   const [config, setConfig] = useState<CertificateConfig>(() => {
@@ -292,18 +293,18 @@ export default function App() {
             const photoMap = targetRace.demoPhotos || DEMO_PHOTOS;
             if (!current) {
               const first = res.runners[0];
-              const p = photoMap[first.bib];
+              const p = getDemoPhoto(first.bib) || getDemoPhoto(first.name) || photoMap[first.bib];
               return p ? { ...first, photoUrl: p } : first;
             }
             // Prioritize finding current runner in the freshly loaded runners
             const found = res.runners.find((r) => r.bib.toLowerCase() === current.bib.toLowerCase());
             if (found) {
-              const p = photoMap[found.bib];
+              const p = getDemoPhoto(found.bib) || getDemoPhoto(found.name) || photoMap[found.bib];
               return p ? { ...found, photoUrl: p } : found;
             }
             // If current runner is not in the new sheet, switch to the first runner of the new sheet
             const first = res.runners[0];
-            const p = photoMap[first.bib];
+            const p = getDemoPhoto(first.bib) || getDemoPhoto(first.name) || photoMap[first.bib];
             return p ? { ...first, photoUrl: p } : first;
           });
         }
@@ -358,7 +359,7 @@ export default function App() {
         const photoMap = activeRace.demoPhotos || DEMO_PHOTOS;
         const found = cached.find((r) => r.bib.toLowerCase() === current?.bib?.toLowerCase());
         const target = found || cached[0];
-        const p = photoMap[target.bib];
+        const p = getDemoPhoto(target.bib) || getDemoPhoto(target.name) || photoMap[target.bib];
         return p ? { ...target, photoUrl: p } : target;
       });
     }
@@ -374,7 +375,7 @@ export default function App() {
       const match = runners.find((r) => r.bib.toLowerCase() === bibParam.toLowerCase());
       if (match) {
         const photoMap = activeRace.demoPhotos || DEMO_PHOTOS;
-        const demoPhoto = photoMap[match.bib];
+        const demoPhoto = getDemoPhoto(match.bib) || getDemoPhoto(match.name) || photoMap[match.bib];
         setSelectedRunner(demoPhoto ? { ...match, photoUrl: demoPhoto } : match);
       }
     }
@@ -458,7 +459,7 @@ export default function App() {
             demoPhotos={activeRace.demoPhotos}
             onSelectRunner={(runner) => {
               const photoMap = activeRace.demoPhotos || DEMO_PHOTOS;
-              const demoPhoto = photoMap[runner.bib];
+              const demoPhoto = getDemoPhoto(runner.bib) || getDemoPhoto(runner.name) || photoMap[runner.bib];
               const withPhoto = demoPhoto
                 ? { ...runner, photoUrl: demoPhoto }
                 : runner;

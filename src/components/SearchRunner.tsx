@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, X, CheckCircle2, ChevronRight, Loader2 } from 'lucide-react';
 import { Runner } from '../types';
-import { DEMO_RUNNERS, DEMO_PHOTOS } from '../data/mockRunners';
+import { DEMO_RUNNERS, DEMO_PHOTOS, getDemoPhoto } from '../data/mockRunners';
 
 interface SearchRunnerProps {
   runners: Runner[];
@@ -70,9 +70,9 @@ export const SearchRunner: React.FC<SearchRunnerProps> = ({
   }, []);
 
   const handleSelect = (runner: Runner) => {
-    const photo = activePhotos[runner.bib];
-    const runnerWithPhoto = photo
-      ? { ...runner, photoUrl: photo }
+    const demoPhoto = getDemoPhoto(runner.bib) || getDemoPhoto(runner.name) || activePhotos[runner.bib];
+    const runnerWithPhoto = demoPhoto
+      ? { ...runner, photoUrl: demoPhoto }
       : runner;
     onSelectRunner(runnerWithPhoto);
     setQuery(`${runner.name} - ${runner.bib}`);
@@ -167,21 +167,24 @@ export const SearchRunner: React.FC<SearchRunnerProps> = ({
                   }`}
                 >
                   <div className="flex items-center space-x-3">
-                    {item.photoUrl ? (
-                      <img
-                        src={item.photoUrl}
-                        alt={item.name}
-                        className="w-7 h-7 rounded-md object-cover border border-slate-200"
-                      />
-                    ) : (
-                      <div
-                        className={`w-7 h-7 rounded-md flex items-center justify-center font-bold text-[11px] ${
-                          item.gender === 'F' ? 'bg-rose-50 text-[#9F224E]' : 'bg-sky-50 text-sky-700'
-                        }`}
-                      >
-                        {item.gender}
-                      </div>
-                    )}
+                    {(() => {
+                      const itemPhoto = getDemoPhoto(item.bib) || getDemoPhoto(item.name) || item.photoUrl;
+                      return itemPhoto ? (
+                        <img
+                          src={itemPhoto}
+                          alt={item.name}
+                          className="w-7 h-7 rounded-md object-cover border border-slate-200"
+                        />
+                      ) : (
+                        <div
+                          className={`w-7 h-7 rounded-md flex items-center justify-center font-bold text-[11px] ${
+                            item.gender === 'F' ? 'bg-rose-50 text-[#9F224E]' : 'bg-sky-50 text-sky-700'
+                          }`}
+                        >
+                          {item.gender}
+                        </div>
+                      );
+                    })()}
                     <div>
                       <div className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
                         <span>{item.name}</span>

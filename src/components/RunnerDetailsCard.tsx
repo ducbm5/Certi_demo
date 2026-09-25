@@ -2,6 +2,7 @@ import React from 'react';
 import { Runner } from '../types';
 import { Trophy, Timer, User, Flag, Calendar, Hash, Medal, Award, TrendingUp, Zap, Gauge } from 'lucide-react';
 import { getRunnerSplitData } from '../utils/runnerSplits';
+import { getDemoPhoto } from '../data/mockRunners';
 
 interface RunnerDetailsCardProps {
   runner: Runner;
@@ -9,14 +10,15 @@ interface RunnerDetailsCardProps {
 
 export const RunnerDetailsCard: React.FC<RunnerDetailsCardProps> = ({ runner }) => {
   const splits = getRunnerSplitData(runner);
+  const displayPhoto = runner.photoUrl || getDemoPhoto(runner.bib) || getDemoPhoto(runner.name);
 
   return (
     <div className="w-full bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-6 shadow-xs text-slate-800 space-y-4" id="runner-details-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
         <div className="flex items-center gap-3">
-          {runner.photoUrl ? (
+          {displayPhoto ? (
             <img
-              src={runner.photoUrl}
+              src={displayPhoto}
               alt={runner.name}
               className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-xs"
             />

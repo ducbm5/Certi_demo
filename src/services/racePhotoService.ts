@@ -1,5 +1,5 @@
 import { Race } from '../data/races';
-import { DEMO_RACE_PHOTOS, DEMO_PHOTOS } from '../data/mockRunners';
+import { DEMO_RACE_PHOTOS, DEMO_PHOTOS, getDemoPhoto } from '../data/mockRunners';
 import { getDirectGoogleDriveImageUrl } from './sheetService';
 
 /**
@@ -128,6 +128,16 @@ const memoryPhotosCache: Record<string, string[]> = {};
 export async function getRunnerRacePhotos(bib: string, race?: Race): Promise<string[]> {
   const cleanBib = (bib || '').trim().toLowerCase();
   if (!cleanBib) return [];
+
+  // 0. Nếu là VĐV mẫu (ví dụ không phải data thực tế):
+  // Phùng Hữu Thanh (90110) -> ['/1.jpg']
+  // Yuki Yokota (61137)     -> ['/2.jpg']
+  // Ilyina Iryna (52535)    -> ['/3.jpg']
+  // Luôn trả về đúng ảnh mẫu tương ứng, không gọi truy vấn ngầm Google Apps Script
+  const demoPhoto = getDemoPhoto(cleanBib);
+  if (demoPhoto) {
+    return [demoPhoto];
+  }
 
   const raceKey = race?.id || 'default';
   const cacheKey = `${raceKey}_${cleanBib}`;
