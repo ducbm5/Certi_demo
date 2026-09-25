@@ -774,27 +774,105 @@ async function startServer() {
     }
   });
 
-  // Proxy API for Google Apps Script to bypass browser CORS
+  // In-memory cache for Google Apps Script sheet data (reduces load on Google Sheet quota and prevents concurrency errors)
+  const sheetDataCache = new Map<string, { data: any; rawText?: string; isJson: boolean; timestamp: number }>();
+  const SHEET_CACHE_TTL = 5 * 60 * 1000; // 5 minutes fresh TTL
+
+  // Proxy API for Google Apps Script to bypass browser CORS & cache results
   app.get('/api/proxy-sheet', async (req, res) => {
     const targetUrl = req.query.url as string;
+    const forceRefresh = req.query.force === 'true' || req.query.bust === 'true';
     if (!targetUrl) {
       return res.status(400).json({ error: 'Missing url parameter' });
     }
-    try {
-      const response = await fetch(targetUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)',
-        },
-      });
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        const json = await response.json();
-        return res.json(json);
+
+    const cacheKey = targetUrl;
+    const cached = sheetDataCache.get(cacheKey);
+
+    // Return fresh cached data if available and not forced
+    if (!forceRefresh && cached && Date.now() - cached.timestamp < SHEET_CACHE_TTL) {
+      if (cached.isJson) {
+        return res.json(cached.data);
       }
+      return res.send(cached.rawText);
+    }
+
+    // Helper to fetch with timeout and follow redirects
+    async function doFetch(attempt = 1): Promise<Response> {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
+      try {
+        const resp = await fetch(targetUrl, {
+          signal: controller.signal,
+          redirect: 'follow',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)',
+            'Accept': 'application/json, text/plain, */*',
+          },
+        });
+        clearTimeout(timeoutId);
+        if (!resp.ok && attempt < 2) {
+          // Wait 1s and retry once for transient Apps Script busy states
+          await new Promise((r) => setTimeout(r, 1000));
+          return doFetch(attempt + 1);
+        }
+        return resp;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 1200));
+          return doFetch(attempt + 1);
+        }
+        throw err;
+      }
+    }
+
+    try {
+      const response = await doFetch(1);
+      const contentType = response.headers.get('content-type') || '';
       const text = await response.text();
+
+      let parsedJson: any = null;
+      let isJson = false;
+
+      if (contentType.includes('application/json') || text.trim().startsWith('{') || text.trim().startsWith('[')) {
+        try {
+          parsedJson = JSON.parse(text);
+          isJson = true;
+        } catch {
+          isJson = false;
+        }
+      }
+
+      if (isJson && parsedJson) {
+        // Cache the successful JSON response
+        sheetDataCache.set(cacheKey, {
+          data: parsedJson,
+          isJson: true,
+          timestamp: Date.now(),
+        });
+        return res.json(parsedJson);
+      }
+
+      // Cache raw text (e.g. CSV)
+      sheetDataCache.set(cacheKey, {
+        data: null,
+        rawText: text,
+        isJson: false,
+        timestamp: Date.now(),
+      });
       return res.send(text);
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      console.warn(`[Proxy Sheet] Fetch failed for ${targetUrl}:`, err.message);
+      // Fallback: If we have ANY stale cache in memory, serve it to avoid breaking user experience!
+      if (cached) {
+        console.info(`[Proxy Sheet] Serving stale cache for ${targetUrl} due to upstream fetch failure`);
+        if (cached.isJson) {
+          return res.json({ ...cached.data, _stale: true });
+        }
+        return res.send(cached.rawText);
+      }
+      return res.status(500).json({ error: err.message || 'Không thể kết nối đến nguồn dữ liệu lúc này' });
     }
   });
 

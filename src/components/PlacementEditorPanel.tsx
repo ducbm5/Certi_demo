@@ -15,6 +15,7 @@ import {
   Copy,
   Check,
   Loader2,
+  FileCode,
 } from 'lucide-react';
 import { CertificatePlacements, CertificateFieldPlacement } from '../types';
 import { DEFAULT_NGHE_AN_PLACEMENTS } from '../data/certificatePlacements';
@@ -28,8 +29,9 @@ interface PlacementEditorPanelProps {
   onSelectFieldId: (id: string) => void;
   showGuide: boolean;
   onToggleGuide: () => void;
-  onSaveHardcoded?: () => void;
-  isSavingHardcoded?: boolean;
+  onSaveToRace?: () => void;
+  isSavingToRace?: boolean;
+  onExportStaticApi?: () => void;
   onCopyCode?: () => void;
 }
 
@@ -52,8 +54,9 @@ export const PlacementEditorPanel: React.FC<PlacementEditorPanelProps> = ({
   onSelectFieldId,
   showGuide,
   onToggleGuide,
-  onSaveHardcoded,
-  isSavingHardcoded,
+  onSaveToRace,
+  isSavingToRace,
+  onExportStaticApi,
   onCopyCode,
 }) => {
   const fields: CertificateFieldPlacement[] = Object.values(placements);
@@ -518,28 +521,41 @@ export const PlacementEditorPanel: React.FC<PlacementEditorPanelProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {onSaveHardcoded && (
+          {onSaveToRace && (
             <button
               type="button"
-              id="save-hardcoded-placements-btn"
-              onClick={onSaveHardcoded}
-              disabled={isSavingHardcoded}
-              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-              title="Lưu vị trí & cỡ chữ hiện tại vào code cứng của hệ thống"
+              id="save-race-placements-btn"
+              onClick={onSaveToRace}
+              disabled={isSavingToRace}
+              className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Lưu các toạ độ này trực tiếp vào giải đấu"
             >
-              {isSavingHardcoded ? (
+              {isSavingToRace ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <Save className="w-3.5 h-3.5" />
               )}
-              <span>{isSavingHardcoded ? 'Đang lưu...' : 'Lưu vào code cứng'}</span>
+              <span>{isSavingToRace ? 'Đang lưu...' : 'Lưu vào giải'}</span>
+            </button>
+          )}
+
+          {onExportStaticApi && (
+            <button
+              type="button"
+              id="export-static-api-from-panel-btn"
+              onClick={onExportStaticApi}
+              className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Tải file API tĩnh (.json) chứa toạ độ vừa chỉnh"
+            >
+              <FileCode className="w-3.5 h-3.5" />
+              <span>Xuất API Tĩnh</span>
             </button>
           )}
 
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
+            className="px-3 py-1.5 bg-stone-700 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
           >
             Đóng
           </button>

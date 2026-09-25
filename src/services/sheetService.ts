@@ -168,7 +168,8 @@ export const parseCSV = (csvText: string): Runner[] => {
 export const fetchRunnersFromSource = async (
   settings: DataSourceSettings,
   prefix: string = 'vm_quynhon',
-  fallbackRunners: Runner[] = INITIAL_RUNNERS
+  fallbackRunners: Runner[] = INITIAL_RUNNERS,
+  forceRefresh: boolean = false
 ): Promise<{ runners: Runner[]; error?: string; backgroundUrl?: string | null; logoUrl?: string | null }> => {
   const cacheKey = `${prefix}_runners_cache`;
   if (settings.type === 'mock' || !settings.url.trim()) {
@@ -226,29 +227,15 @@ export const fetchRunnersFromSource = async (
       // Otherwise treat as external Apps Script or JSON API with proxy-sheet fallback
       // First try proxy endpoint to safely bypass browser CORS and follow Google redirects
       try {
-      const proxyResp = await fetch(`/api/proxy-sheet?url=${encodeURIComponent(url)}`);
-      const text = await proxyResp.text();
-      try {
-        data = JSON.parse(text);
-      } catch {
-        if (
-          text.includes('accounts.google.com/ServiceLogin') ||
-          text.includes('需要存取權') ||
-          text.includes('action="https://accounts.google.com')
-        ) {
-          throw new Error('Dữ liệu đang được đồng bộ hóa từ máy chủ. Vui lòng thử lại sau.');
-        }
-        throw new Error('Không thể đồng bộ dữ liệu lúc này.');
-      }
-    } catch (proxyErr: any) {
-      fetchErrorMsg = proxyErr.message || '';
-      // Fallback to direct fetch
-      try {
-        const resp = await fetch(url);
-        const text = await resp.text();
+        const forceParam = forceRefresh ? '&force=true' : '';
+        const proxyResp = await fetch(`/api/proxy-sheet?url=${encodeURIComponent(url)}${forceParam}`);
+        const text = await proxyResp.text();
         try {
           data = JSON.parse(text);
-        } catch {
+          if (data && data.error && !Array.isArray(data.data) && !Array.isArray(data.runners) && !Array.isArray(data)) {
+            throw new Error(data.error);
+          }
+        } catch (parseErr: any) {
           if (
             text.includes('accounts.google.com/ServiceLogin') ||
             text.includes('需要存取權') ||
@@ -256,13 +243,31 @@ export const fetchRunnersFromSource = async (
           ) {
             throw new Error('Dữ liệu đang được đồng bộ hóa từ máy chủ. Vui lòng thử lại sau.');
           }
-          throw new Error('Không thể đồng bộ dữ liệu lúc này.');
+          throw new Error(parseErr.message || 'Không thể đồng bộ dữ liệu lúc này.');
         }
-      } catch (directErr: any) {
-        throw new Error('Không thể tải dữ liệu lúc này. Vui lòng bấm Tải lại.');
+      } catch (proxyErr: any) {
+        fetchErrorMsg = proxyErr.message || '';
+        // Fallback to direct fetch
+        try {
+          const resp = await fetch(url);
+          const text = await resp.text();
+          try {
+            data = JSON.parse(text);
+          } catch {
+            if (
+              text.includes('accounts.google.com/ServiceLogin') ||
+              text.includes('需要存取權') ||
+              text.includes('action="https://accounts.google.com')
+            ) {
+              throw new Error('Dữ liệu đang được đồng bộ hóa từ máy chủ. Vui lòng thử lại sau.');
+            }
+            throw new Error('Không thể đồng bộ dữ liệu lúc này.');
+          }
+        } catch (directErr: any) {
+          throw new Error('Không thể tải dữ liệu lúc này. Vui lòng bấm Tải lại.');
+        }
       }
     }
-  }
 
     let list: Runner[] = [];
     if (Array.isArray(data)) {
@@ -348,14 +353,19 @@ export const fetchRunnersFromSource = async (
     const logoUrl = data && (data.logoUrl || data.logo) ? String(data.logoUrl || data.logo).trim() : null;
     return { runners: formatted, backgroundUrl: bgUrl, logoUrl };
   } catch (err: any) {
-    console.error('Error fetching runners:', err);
-    // Try reading cached runners
+    console.warn('Lỗi khi cập nhật dữ liệu vận động viên từ Google Sheet:', err.message);
+    // Kiểm tra bộ nhớ tạm (localStorage)
     try {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return { runners: parsed, error: `Dùng dữ liệu cache tạm thời: ${err.message}` };
+          // Nếu người dùng chủ động bấm "Tải lại", hiển thị thông báo nhẹ nhàng.
+          // Nếu là đồng bộ ngầm định kỳ, không hiển thị lỗi gây gián đoạn trải nghiệm người dùng.
+          return {
+            runners: parsed,
+            error: forceRefresh ? `Không thể kết nối đến Google Sheet lúc này, đang dùng ${parsed.length} VĐV trong bộ nhớ tạm.` : undefined,
+          };
         }
       }
     } catch {

@@ -11,7 +11,7 @@ import {
 import { PlacementEditorPanel } from './PlacementEditorPanel';
 import { RaceManagerTab } from './RaceManagerTab';
 import { drawCertificate } from '../utils/canvasDrawer';
-import { exportRaceToExcel } from '../utils/exportRaceExcel';
+import { exportRaceStaticApi } from '../utils/exportRaceStaticApi';
 import {
   Lock,
   ShieldCheck,
@@ -33,7 +33,7 @@ import {
   ZoomOut,
   Users,
   Trophy,
-  FileSpreadsheet,
+  FileCode,
 } from 'lucide-react';
 
 interface AdminPlacementStudioProps {
@@ -70,7 +70,11 @@ export const AdminPlacementStudio: React.FC<AdminPlacementStudioProps> = ({
   const [authError, setAuthError] = useState<string | null>(null);
 
   // Placements & Editor State
-  const [placements, setPlacements] = useState<CertificatePlacements>(() => getSavedPlacements());
+  const [placements, setPlacements] = useState<CertificatePlacements>(() => {
+    return activeRace.placements && Object.keys(activeRace.placements).length > 0
+      ? activeRace.placements
+      : getSavedPlacements() || DEFAULT_NGHE_AN_PLACEMENTS;
+  });
   const [activeFieldId, setActiveFieldId] = useState<string>('name');
   const [showGuide, setShowGuide] = useState<boolean>(true);
   const [selectedRunner, setSelectedRunner] = useState<Runner>((runners && runners.length > 0 && runners[0]) || {
@@ -101,6 +105,13 @@ export const AdminPlacementStudio: React.FC<AdminPlacementStudioProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
   const [bgLoaded, setBgLoaded] = useState<boolean>(false);
+
+  // Sync placements when active race changes
+  useEffect(() => {
+    if (activeRace.placements && Object.keys(activeRace.placements).length > 0) {
+      setPlacements(activeRace.placements);
+    }
+  }, [activeRace.id]);
 
   // Handle Login
   const handleLogin = (e: React.FormEvent) => {
@@ -193,44 +204,58 @@ export const AdminPlacementStudio: React.FC<AdminPlacementStudioProps> = ({
   const handleChangePlacements = (newPlacements: CertificatePlacements) => {
     setPlacements(newPlacements);
     savePlacements(newPlacements);
+    // Đồng bộ ngay lập tức vào activeRace để không bị lạc hậu dữ liệu
+    activeRace.placements = newPlacements;
   };
 
   const handleResetPlacements = () => {
     const def = resetPlacements();
     setPlacements(def);
+    activeRace.placements = def;
   };
 
-  // Save to Hardcoded Code via Backend API
-  const handleSaveToHardcoded = async () => {
+  // Save Placements to Race on server (persists to public/races/${slug}.json and public/races-data.json)
+  const handleSaveToRace = async () => {
     setIsSaving(true);
     setSaveSuccessMsg(null);
     setSaveErrorMsg(null);
 
     try {
-      const res = await fetch('/api/admin/save-placements', {
+      const updatedRace: Race = {
+        ...activeRace,
+        placements,
+      };
+
+      const res = await fetch('/api/admin/races', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           password: ADMIN_PASSWORD_EXPECTED,
-          placements,
+          race: updatedRace,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Lỗi khi lưu vào hệ thống');
+        throw new Error(data.error || 'Lỗi khi lưu toạ độ vào giải');
       }
 
-      clearSavedUserPlacements();
+      activeRace.placements = placements;
+      await onRefreshRaces();
       setSaveSuccessMsg(
-        'Đã lưu thành công cấu hình vị trí & kích thước vào code cứng! Mọi người dùng khi vào trang sẽ tự động áp dụng cấu hình này.'
+        `Đã lưu thành công toạ độ phôi mới cho giải "${activeRace.name}"! File cấu hình public/races/${activeRace.slug}.json đã được cập nhật toạ độ chuẩn.`
       );
-      setTimeout(() => setSaveSuccessMsg(null), 6000);
+      setTimeout(() => setSaveSuccessMsg(null), 5000);
     } catch (err: any) {
       setSaveErrorMsg(err.message || 'Lỗi kết nối máy chủ');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Export Static API JSON (.json) for current race with latest placements
+  const handleExportStaticApi = () => {
+    exportRaceStaticApi(activeRace, placements);
   };
 
   // Copy TypeScript code
@@ -268,14 +293,13 @@ export const AdminPlacementStudio: React.FC<AdminPlacementStudioProps> = ({
     setTimeout(() => setCopiedCode(false), 3000);
   };
 
-  // Export current race to Excel (Yêu cầu 2)
-  const handleExportCurrentRaceExcel = () => {
-    exportRaceToExcel(activeRace, placements);
-  };
-
   // Switch to placements view for a specific race
   const handleSelectRaceForPlacements = (race: Race) => {
     onSelectRace(race);
+    if (race.placements && Object.keys(race.placements).length > 0) {
+      setPlacements(race.placements);
+      savePlacements(race.placements);
+    }
     setAdminTab('placements');
   };
 
@@ -290,7 +314,7 @@ export const AdminPlacementStudio: React.FC<AdminPlacementStudioProps> = ({
             </div>
             <h1 className="text-xl font-bold text-white mb-1">Khu Vực Quản Trị Hệ Thống</h1>
             <p className="text-slate-400 text-xs">
-              Tạo giải đấu, thiết lập URL, phôi chứng nhận, link Google Apps Script và xuất file Excel cấu hình.
+              Tạo giải đấu, thiết lập URL, phôi chứng nhận, toạ độ chữ và xuất file API tĩnh cấu hình giải.
             </p>
           </div>
 
@@ -423,17 +447,6 @@ export const AdminPlacementStudio: React.FC<AdminPlacementStudioProps> = ({
             </select>
           </div>
 
-          {/* Export Excel Button (Yêu cầu 2 của người dùng) */}
-          <button
-            type="button"
-            onClick={handleExportCurrentRaceExcel}
-            className="px-3 py-1.5 rounded-xl bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-600 text-emerald-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-            title="Xuất cấu hình giải đấu và toạ độ text ra file Excel (.xlsx)"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-            <span className="hidden sm:inline">Xuất Excel (.xlsx)</span>
-          </button>
-
           {/* Runner Switcher (only when in placements tab) */}
           {adminTab === 'placements' && (
             <div className="hidden lg:flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1 text-xs">
@@ -455,19 +468,32 @@ export const AdminPlacementStudio: React.FC<AdminPlacementStudioProps> = ({
             </div>
           )}
 
-          {/* Save to hardcoded code (placements tab) */}
+          {/* Save to Race on server & Export API JSON */}
           {adminTab === 'placements' && (
-            <button
-              type="button"
-              id="admin-save-code-btn"
-              onClick={handleSaveToHardcoded}
-              disabled={isSaving}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#9F224E] to-[#B81B4B] hover:from-[#881337] hover:to-[#9F224E] text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-rose-950/40 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-              title="Lưu các tọa độ và kích thước hiện tại trực tiếp vào code"
-            >
-              <Save className="w-3.5 h-3.5" />
-              <span>{isSaving ? 'Đang lưu...' : 'Lưu Vào Code Cứng'}</span>
-            </button>
+            <>
+              <button
+                type="button"
+                id="admin-save-race-btn"
+                onClick={handleSaveToRace}
+                disabled={isSaving}
+                className="px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                title="Lưu các tọa độ này vào giải đấu"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{isSaving ? 'Đang lưu...' : 'Lưu toạ độ vào giải'}</span>
+              </button>
+
+              <button
+                type="button"
+                id="admin-export-static-api-btn"
+                onClick={handleExportStaticApi}
+                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
+                title="Tải file API tĩnh (.json) chứa toạ độ vừa chỉnh"
+              >
+                <FileCode className="w-3.5 h-3.5" />
+                <span>Xuất API Tĩnh (.json)</span>
+              </button>
+            </>
           )}
 
           <button
@@ -609,17 +635,17 @@ export const AdminPlacementStudio: React.FC<AdminPlacementStudioProps> = ({
                 </div>
                 <button
                   type="button"
-                  onClick={handleExportCurrentRaceExcel}
-                  className="text-[11px] underline text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 cursor-pointer"
+                  onClick={handleExportStaticApi}
+                  className="text-[11px] underline text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 cursor-pointer"
                 >
-                  <FileSpreadsheet className="w-3 h-3" />
-                  <span>Xuất Excel</span>
+                  <FileCode className="w-3 h-3" />
+                  <span>Xuất API Tĩnh</span>
                 </button>
               </div>
               <p className="text-[11px] leading-relaxed text-teal-200/80">
                 1. Nhấp chọn trường cần căn chỉnh (Tên, Cự ly, BIB, Chip time,...).<br />
                 2. Kéo thanh trượt hoặc bấm nút +/- để căn đúng vị trí trên phôi giải này.<br />
-                3. Bấm nút <strong>"Lưu vào code cứng"</strong> để áp dụng cho tất cả người dùng.
+                3. Bấm <strong>"Lưu vào giải"</strong> để ghi vào hệ thống, hoặc bấm <strong>"Xuất API Tĩnh (.json)"</strong> để tải file cấu hình toạ độ mới.
               </p>
             </div>
 
@@ -632,8 +658,9 @@ export const AdminPlacementStudio: React.FC<AdminPlacementStudioProps> = ({
               onSelectFieldId={setActiveFieldId}
               showGuide={showGuide}
               onToggleGuide={() => setShowGuide((prev) => !prev)}
-              onSaveHardcoded={handleSaveToHardcoded}
-              isSavingHardcoded={isSaving}
+              onSaveToRace={handleSaveToRace}
+              isSavingToRace={isSaving}
+              onExportStaticApi={handleExportStaticApi}
               onCopyCode={handleCopyCode}
             />
           </div>

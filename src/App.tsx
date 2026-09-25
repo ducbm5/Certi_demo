@@ -244,7 +244,7 @@ export default function App() {
 
   // Load runners for specific race
   const loadRunnersForRace = useCallback(
-    async (settings: DataSourceSettings, targetRace: Race) => {
+    async (settings: DataSourceSettings, targetRace: Race, forceRefresh: boolean = false) => {
       setIsLoadingRunners(true);
       try {
         // If race has specific Apps Script URL, prioritize using it
@@ -257,7 +257,8 @@ export default function App() {
         const res = await fetchRunnersFromSource(
           raceSpecificSettings,
           targetRace.storageKeyPrefix,
-          targetRace.initialRunners
+          targetRace.initialRunners,
+          forceRefresh
         );
 
         if (res.backgroundUrl) {
@@ -425,7 +426,7 @@ export default function App() {
             <div className="flex items-center gap-3 shrink-0 ml-2">
               <button
                 type="button"
-                onClick={() => loadRunnersForRace(dataSourceSettings, activeRace)}
+                onClick={() => loadRunnersForRace(dataSourceSettings, activeRace, true)}
                 className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
               >
                 Tải lại ngay
