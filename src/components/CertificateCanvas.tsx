@@ -418,6 +418,7 @@ export const CertificateCanvas: React.FC<CertificateCanvasProps> = ({
       await savePersonalPhoto(dataUrl);
       setUserUploadedPhoto(dataUrl);
       setPersonalPhotoUrl(dataUrl);
+      setViewMode('collage');
       setPhotoOffsetX(0);
       setPhotoOffsetY(0);
       setPhotoZoom(1.0);
@@ -788,36 +789,50 @@ export const CertificateCanvas: React.FC<CertificateCanvasProps> = ({
 
       {/* Top Mode Segmented Switcher & Action Toolbar */}
       <div className="w-full flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 mb-3 px-1">
-        {/* Mode Toggle: Single vs Collage */}
-        <div className="inline-flex p-1 bg-slate-100 border border-slate-200 rounded-xl shadow-xs self-start sm:self-auto">
+        {/* Mode Toggle: Single vs Collage + Separate Upload from Device Button */}
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          <div className="inline-flex p-1 bg-slate-100 border border-slate-200 rounded-xl shadow-xs">
+            <button
+              type="button"
+              id="mode-single-btn"
+              onClick={() => setViewMode('single')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                viewMode === 'single'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <span>Chứng nhận đơn</span>
+              <span className="text-[10px] text-slate-400 font-normal">(1080×2400)</span>
+            </button>
+            <button
+              type="button"
+              id="mode-collage-btn"
+              onClick={() => setViewMode('collage')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                viewMode === 'collage'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Ghép ảnh cá nhân</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-50 text-[#9F224E] font-bold border border-rose-200/60">
+                {photoRatio}
+              </span>
+            </button>
+          </div>
+
+          {/* Tách riêng phần tải từ máy: luôn sẵn sàng cho người dùng tải ảnh ngay */}
           <button
             type="button"
-            id="mode-single-btn"
-            onClick={() => setViewMode('single')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === 'single'
-                ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold'
-                : 'text-slate-500 hover:text-slate-900'
-            }`}
+            id="standalone-upload-device-btn"
+            onClick={() => personalFileInputRef.current?.click()}
+            className="px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-800 hover:text-[#9F224E] font-semibold text-xs rounded-xl border border-slate-200/90 shadow-2xs hover:border-rose-200 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            title="Tải ảnh cá nhân từ máy tính hoặc điện thoại của bạn"
           >
-            <span>Chứng nhận đơn</span>
-            <span className="text-[10px] text-slate-400 font-normal">(1080×2400)</span>
-          </button>
-          <button
-            type="button"
-            id="mode-collage-btn"
-            onClick={() => setViewMode('collage')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === 'collage'
-                ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold'
-                : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Ghép ảnh cá nhân</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-50 text-[#9F224E] font-bold border border-rose-200/60">
-              {photoRatio}
-            </span>
+            <Upload className="w-3.5 h-3.5 text-[#9F224E]" />
+            <span>Tải ảnh từ máy</span>
           </button>
         </div>
 
@@ -888,7 +903,6 @@ export const CertificateCanvas: React.FC<CertificateCanvasProps> = ({
           setPhotoOffsetY(0);
           setPhotoZoom(1.0);
         }}
-        onUploadCustomPhoto={() => personalFileInputRef.current?.click()}
       />
 
       {/* Collage Control Panel (Only visible in collage mode) */}

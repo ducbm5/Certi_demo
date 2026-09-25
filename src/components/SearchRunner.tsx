@@ -115,7 +115,7 @@ export const SearchRunner: React.FC<SearchRunnerProps> = ({
           }}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Nhập số BIB hoặc Họ tên (VD: 88888 hoặc Bùi Minh Đức)..."
+          placeholder="Nhập số BIB hoặc Họ tên (VD: 90110 hoặc Phùng Hữu Thanh)..."
           className="w-full pl-10 pr-10 py-3 bg-slate-50 hover:bg-white text-slate-900 placeholder-slate-400 border border-slate-200 rounded-xl shadow-xs focus:outline-none focus:bg-white focus:border-[#9F224E] focus:ring-2 focus:ring-[#9F224E]/15 text-sm font-medium transition-all"
         />
 

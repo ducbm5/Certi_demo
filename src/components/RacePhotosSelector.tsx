@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Check, Upload, RefreshCw, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Camera, Check } from 'lucide-react';
 import { Runner } from '../types';
 import { Race } from '../data/races';
 import { getRunnerRacePhotos } from '../services/racePhotoService';
@@ -8,7 +8,6 @@ interface RacePhotosSelectorProps {
   runner: Runner;
   activePhotoUrl: string | null;
   onSelectPhoto: (url: string) => void;
-  onUploadCustomPhoto?: () => void;
   activeRace?: Race;
 }
 
@@ -16,7 +15,6 @@ export const RacePhotosSelector: React.FC<RacePhotosSelectorProps> = ({
   runner,
   activePhotoUrl,
   onSelectPhoto,
-  onUploadCustomPhoto,
   activeRace,
 }) => {
   const [photos, setPhotos] = useState<string[]>([]);
@@ -31,10 +29,6 @@ export const RacePhotosSelector: React.FC<RacePhotosSelectorProps> = ({
         const list = await getRunnerRacePhotos(runner.bib, activeRace);
         if (!isCancelled) {
           setPhotos(list);
-          // If no active photo currently selected and photos are available, auto-select the first one
-          if (list.length > 0 && !activePhotoUrl) {
-            onSelectPhoto(list[0]);
-          }
         }
       } catch {
         if (!isCancelled) setPhotos([]);
@@ -49,8 +43,17 @@ export const RacePhotosSelector: React.FC<RacePhotosSelectorProps> = ({
     };
   }, [runner.bib, activeRace?.id, activeRace?.photosScriptUrl]);
 
+  // Box ảnh thi đấu chỉ hiển thị khi đã load xong và có ảnh trong hệ thống.
+  // Hoàn toàn ẩn khi đang load ngầm để người dùng không nhận biết quá trình tải ngầm.
+  if (isLoading || photos.length === 0) {
+    return null;
+  }
+
   return (
-    <div className="w-full bg-slate-50/90 border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 space-y-2.5 transition-all">
+    <div
+      className="w-full bg-slate-50/95 border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 space-y-2.5 transition-all mb-3 shadow-2xs"
+      id="race-photos-system-box"
+    >
       {/* Header Bar */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
@@ -59,97 +62,54 @@ export const RacePhotosSelector: React.FC<RacePhotosSelectorProps> = ({
           </div>
           <div>
             <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-              <span>Ảnh thi đấu (BIB {runner.bib})</span>
-              {photos.length > 0 && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-50 text-[#9F224E] border border-rose-200/80 font-bold">
-                  {photos.length} ảnh
-                </span>
-              )}
+              <span>Ảnh thi đấu từ hệ thống (BIB {runner.bib})</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-50 text-[#9F224E] border border-rose-200/80 font-bold">
+                {photos.length} ảnh
+              </span>
             </h4>
           </div>
         </div>
-
-        {/* Upload from device button (alternative option) */}
-        {onUploadCustomPhoto && (
-          <button
-            type="button"
-            onClick={onUploadCustomPhoto}
-            className="px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-            title="Tải ảnh cá nhân từ máy tính hoặc điện thoại của bạn"
-          >
-            <Upload className="w-3 h-3 text-slate-500" />
-            <span>Tải ảnh từ máy</span>
-          </button>
-        )}
+        <span className="text-[11px] text-slate-400">Nhấn vào ảnh để ghép vào chứng nhận</span>
       </div>
 
-      {/* Loading state: clean animated skeleton blocks without verbose text */}
-      {isLoading ? (
-        <div className="flex items-center gap-2.5 overflow-x-auto py-1">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="w-16 h-20 sm:w-20 sm:h-24 rounded-xl bg-slate-200/80 animate-pulse shrink-0 border border-slate-300/60"
-            />
-          ))}
-        </div>
-      ) : photos.length > 0 ? (
-        /* Photos List Horizontal Thumbnails */
-        <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-0.5 scrollbar-thin">
-          {photos.map((photoUrl, idx) => {
-            const isSelected = activePhotoUrl === photoUrl;
-            return (
-              <button
-                key={`${photoUrl}-${idx}`}
-                type="button"
-                onClick={() => onSelectPhoto(photoUrl)}
-                className={`relative group rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer w-16 h-20 sm:w-20 sm:h-24 ${
-                  isSelected
-                    ? 'border-[#9F224E] ring-2 ring-[#9F224E]/30 shadow-md scale-[1.02]'
-                    : 'border-slate-200 hover:border-slate-300 opacity-80 hover:opacity-100'
-                }`}
-                title={`Chọn ảnh thi đấu số ${idx + 1}`}
-              >
-                <img
-                  src={photoUrl}
-                  alt={`Ảnh thi đấu ${idx + 1}`}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                  loading="lazy"
-                />
-
-                {/* Selected Checkmark Badge */}
-                {isSelected && (
-                  <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#9F224E] text-white flex items-center justify-center shadow-xs">
-                    <Check className="w-2.5 h-2.5 stroke-[3]" />
-                  </div>
-                )}
-
-                {/* Index tag */}
-                <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-xs text-[9px] text-white font-mono font-medium">
-                  #{idx + 1}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        /* Empty State */
-        <div className="p-3 bg-white/70 border border-dashed border-slate-300 rounded-xl flex items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-slate-500">
-            <ImageIcon className="w-4 h-4 text-slate-400 shrink-0" />
-            <span className="text-[11px]">Chưa có ảnh thi đấu lưu trữ cho BIB {runner.bib}</span>
-          </div>
-          {onUploadCustomPhoto && (
+      {/* Photos List Horizontal Thumbnails */}
+      <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-0.5 scrollbar-thin">
+        {photos.map((photoUrl, idx) => {
+          const isSelected = activePhotoUrl === photoUrl;
+          return (
             <button
+              key={`${photoUrl}-${idx}`}
               type="button"
-              onClick={onUploadCustomPhoto}
-              className="text-[11px] font-bold text-[#9F224E] hover:underline cursor-pointer shrink-0"
+              onClick={() => onSelectPhoto(photoUrl)}
+              className={`relative group rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer w-16 h-20 sm:w-20 sm:h-24 ${
+                isSelected
+                  ? 'border-[#9F224E] ring-2 ring-[#9F224E]/30 shadow-md scale-[1.02]'
+                  : 'border-slate-200 hover:border-slate-300 opacity-80 hover:opacity-100'
+              }`}
+              title={`Chọn ảnh thi đấu số ${idx + 1}`}
             >
-              Tải ảnh lên ngay →
+              <img
+                src={photoUrl}
+                alt={`Ảnh thi đấu ${idx + 1}`}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                loading="lazy"
+              />
+
+              {/* Selected Checkmark Badge */}
+              {isSelected && (
+                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#9F224E] text-white flex items-center justify-center shadow-xs">
+                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                </div>
+              )}
+
+              {/* Index tag */}
+              <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-xs text-[9px] text-white font-mono font-medium">
+                #{idx + 1}
+              </div>
             </button>
-          )}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 };
