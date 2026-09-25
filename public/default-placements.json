@@ -2,10 +2,10 @@
   "name": {
     "id": "name",
     "label": "Tên Vận Động Viên",
-    "x": 50.0,
+    "x": 50,
     "y": 32.84,
-    "fontSize": 58,
-    "color": "#042738",
+    "fontSize": 66,
+    "color": "#054b53",
     "align": "center",
     "fontWeight": 800
   },
@@ -15,7 +15,7 @@
     "x": 36.5,
     "y": 36.63,
     "fontSize": 50,
-    "color": "#042738",
+    "color": "#054b53",
     "align": "center",
     "fontWeight": 800
   },
@@ -25,58 +25,58 @@
     "x": 72.5,
     "y": 36.63,
     "fontSize": 50,
-    "color": "#042738",
+    "color": "#054b53",
     "align": "center",
     "fontWeight": 800
   },
   "chipTime": {
     "id": "chipTime",
     "label": "Thời gian Chip Time",
-    "x": 50.0,
-    "y": 48.2,
-    "fontSize": 95,
+    "x": 52.8,
+    "y": 49.1,
+    "fontSize": 200,
     "color": "#fff100",
     "align": "center",
-    "fontWeight": 900
+    "fontWeight": 700
   },
   "finishTime": {
     "id": "finishTime",
     "label": "Finish Time (Gun Time)",
     "x": 31.5,
-    "y": 54.35,
-    "fontSize": 38,
-    "color": "#ffffff",
+    "y": 54.5,
+    "fontSize": 55,
+    "color": "#FFF100",
     "align": "left",
-    "fontWeight": 700
+    "fontWeight": 600
   },
   "overallRank": {
     "id": "overallRank",
     "label": "Hạng Chung cuộc (Overall)",
     "x": 28.5,
-    "y": 57.95,
-    "fontSize": 38,
-    "color": "#ffffff",
+    "y": 58.1,
+    "fontSize": 55,
+    "color": "#FFF100",
     "align": "left",
-    "fontWeight": 700
+    "fontWeight": 600
   },
   "genderRank": {
     "id": "genderRank",
     "label": "Hạng Giới tính (Gender)",
     "x": 79.5,
-    "y": 57.95,
-    "fontSize": 38,
-    "color": "#ffffff",
+    "y": 58,
+    "fontSize": 55,
+    "color": "#FFF100",
     "align": "left",
-    "fontWeight": 700
+    "fontWeight": 600
   },
   "ageGroupRank": {
     "id": "ageGroupRank",
     "label": "Hạng Lứa tuổi (Age Group)",
-    "x": 49.0,
-    "y": 61.5,
-    "fontSize": 38,
-    "color": "#ffffff",
+    "x": 49,
+    "y": 61.6,
+    "fontSize": 55,
+    "color": "#FFF100",
     "align": "left",
-    "fontWeight": 700
+    "fontWeight": 600
   }
 }

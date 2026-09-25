@@ -107,13 +107,16 @@ export const CertificateCanvas: React.FC<CertificateCanvasProps> = ({
   const [activeFieldId, setActiveFieldId] = useState<string>('name');
   const [showGuide, setShowGuide] = useState<boolean>(true);
 
-  // Ensure config has placements initialized
+  // Ensure config has placements initialized from activeRace or defaults
   useEffect(() => {
     if (!config.placements) {
-      const saved = getSavedPlacements();
-      onChangeConfig({ ...config, placements: saved });
+      const priorityPlacements =
+        (activeRace && activeRace.placements && Object.keys(activeRace.placements).length > 0)
+          ? activeRace.placements
+          : getSavedPlacements();
+      onChangeConfig({ ...config, placements: priorityPlacements });
     }
-  }, [config, onChangeConfig]);
+  }, [config.placements, activeRace?.placements, onChangeConfig]);
 
   // Check if any filter is non-default
   const isFilterActive =
@@ -230,7 +233,7 @@ export const CertificateCanvas: React.FC<CertificateCanvasProps> = ({
 
   // Preload custom cert background image with automatic fallback to public /NA26.png or defaultBgUrl
   useEffect(() => {
-    const rawBg = config.customBgDataUrl;
+    const rawBg = config.customBgDataUrl || defaultBgUrl || activeRace?.defaultBgUrl || '/NA26.png';
     const bgUrl =
       rawBg &&
       !rawBg.includes('QN26') &&
@@ -242,20 +245,8 @@ export const CertificateCanvas: React.FC<CertificateCanvasProps> = ({
     custImg.crossOrigin = 'anonymous';
     custImg.src = bgUrl;
     custImg.onload = () => {
-      // Validate that image matches Nghệ An certificate resolution or is /NA26.png
-      if ((custImg.naturalWidth === 1469 && custImg.naturalHeight === 3508) || bgUrl.includes('NA26')) {
-        customImgRef.current = custImg;
-        setImagesReady((prev) => !prev);
-      } else {
-        // Discard any legacy Quy Nhon background and force /NA26.png
-        const naImg = new Image();
-        naImg.crossOrigin = 'anonymous';
-        naImg.src = '/NA26.png';
-        naImg.onload = () => {
-          customImgRef.current = naImg;
-          setImagesReady((prev) => !prev);
-        };
-      }
+      customImgRef.current = custImg;
+      setImagesReady((prev) => !prev);
     };
     custImg.onerror = () => {
       const fallbackImg = new Image();
@@ -270,7 +261,7 @@ export const CertificateCanvas: React.FC<CertificateCanvasProps> = ({
         setImagesReady((prev) => !prev);
       };
     };
-  }, [config.customBgDataUrl, defaultBgUrl]);
+  }, [config.customBgDataUrl, defaultBgUrl, activeRace?.defaultBgUrl]);
 
   // Preload personal runner photo for collage
   useEffect(() => {

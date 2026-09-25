@@ -61,38 +61,76 @@ export function ensureRaceRunners(race: Race): Race {
   };
 }
 
-export const RACES: Race[] = [
-  {
-    id: 'nghe-an-2026',
-    slug: 'nghe-an-2026',
-    code: 'NA26',
-    name: 'VnExpress Marathon Grand Tour Nghe An 2026',
-    shortName: 'Grand Tour Nghe An 2026',
-    city: 'TP. Vinh',
-    province: 'Nghệ An',
-    locationFull: 'TP. Vinh, Nghệ An',
-    date: '13/09/2026',
-    officialUrl: 'https://vm.vnexpress.net/nghe-an-2026',
-    defaultLogoUrl: '/race_logo.png',
-    defaultBgUrl: '/NA26.png',
-    accentColor: '#0369a1', // sky-700
-    themeBadgeBg: 'bg-sky-50 text-sky-700 border-sky-200/80',
-    themeDotBg: 'bg-sky-600',
-    storageKeyPrefix: 'vm_nghean',
-    initialRunners: CLONED_NGHE_AN_RUNNERS,
-    demoRunners: CLONED_NGHE_AN_DEMO_RUNNERS,
-    demoPhotos: DEMO_PHOTOS,
-    appsScriptUrl:
-      'https://script.google.com/macros/s/AKfycbwwY2MgGaURMrB20UHGVvUZ3INSOrkd8jIQok1JpnDTWMzblecdDOdDTn7qtrbtPPzquw/exec?key=ducbm900966559155',
-    photosScriptUrl:
-      'https://script.google.com/macros/s/AKfycbyUr1QYj9Eyp60HaDLhXJINbr8Yozt3TXMRlPHpJ7QWhpkK6D4D_ZGMhW5dUerljLT3/exec',
-    description: 'Tra cứu kết quả & Chứng nhận điện tử VnExpress Marathon Grand Tour Nghe An 2026',
-  },
-];
+// Import all static race json definitions from public/races/ at compile time (100% Client-side compatible for Vercel/GitHub Pages)
+const staticRaceModules = import.meta.glob('/public/races/*.json', { eager: true });
 
-export const DEFAULT_RACE = RACES[0];
+function getBundledRaces(): Race[] {
+  const list: Race[] = [];
+  for (const path in staticRaceModules) {
+    try {
+      const mod = staticRaceModules[path] as any;
+      const data = mod?.default || mod;
+      if (data && (data.id || data.slug)) {
+        const raceDate = data.date || '13/09/2026';
+        const fallbackList = INITIAL_RUNNERS.map((r) => ({ ...r, date: raceDate }));
+        list.push({
+          id: data.id || data.slug,
+          slug: data.slug || data.id,
+          code: data.code || 'VM26',
+          name: data.name || data.shortName || 'VnExpress Marathon',
+          shortName: data.shortName || data.name || 'Marathon',
+          city: data.city || '',
+          province: data.province || '',
+          locationFull: data.locationFull || `${data.city || ''}, ${data.province || ''}`.replace(/^, |, $/g, ''),
+          date: data.date || '2026',
+          officialUrl: data.officialUrl || 'https://vm.vnexpress.net',
+          defaultLogoUrl: data.defaultLogoUrl || '/race_logo.png',
+          defaultBgUrl: data.defaultBgUrl || '/NA26.png',
+          accentColor: data.accentColor || '#0369a1',
+          themeBadgeBg: data.themeBadgeBg || 'bg-sky-50 text-sky-700 border-sky-200/80',
+          themeDotBg: data.themeDotBg || 'bg-sky-600',
+          storageKeyPrefix: data.storageKeyPrefix || `vm_${(data.slug || 'race').replace(/[^a-z0-9]/g, '')}`,
+          appsScriptUrl: data.appsScriptUrl || '',
+          photosScriptUrl: data.photosScriptUrl || '',
+          description: data.description || '',
+          placements: data.placements || undefined,
+          initialRunners: data.initialRunners || fallbackList,
+          demoRunners: data.demoRunners || fallbackList,
+          demoPhotos: data.demoPhotos || DEMO_PHOTOS,
+        });
+      }
+    } catch (e) {
+      console.warn('Error reading bundled race file', path, e);
+    }
+  }
+  return list;
+}
+
+const BUNDLED_RACES = getBundledRaces();
+
+export const RACES: Race[] = BUNDLED_RACES;
+
+export const DEFAULT_RACE: Race = BUNDLED_RACES[0] || {
+  id: '',
+  slug: '',
+  code: '',
+  name: 'Chưa có giải đấu',
+  shortName: 'Chưa có giải',
+  city: '',
+  province: '',
+  locationFull: '',
+  date: '',
+  officialUrl: '',
+  defaultLogoUrl: '/race_logo.png',
+  defaultBgUrl: '/NA26.png',
+  accentColor: '#0369a1',
+  themeBadgeBg: 'bg-sky-50 text-sky-700 border-sky-200/80',
+  themeDotBg: 'bg-sky-600',
+  storageKeyPrefix: 'vm_empty',
+  description: 'Vui lòng thêm file cấu hình giải đấu .json vào thư mục public/races/',
+};
 
 // Helper to resolve race from pathname or hash or query
 export const getRaceFromPath = (_path: string): Race => {
-  return RACES[0];
+  return RACES[0] || DEFAULT_RACE;
 };

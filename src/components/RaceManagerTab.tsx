@@ -370,10 +370,6 @@ export const RaceManagerTab: React.FC<RaceManagerTabProps> = ({
 
   // Delete race
   const handleDeleteRace = async (race: Race) => {
-    if (race.id === 'nghe-an-2026') {
-      alert('Không thể xoá giải đấu mặc định Nghệ An 2026.');
-      return;
-    }
     const confirmed = window.confirm(`Bạn có chắc chắn muốn xoá giải "${race.name}"?`);
     if (!confirmed) return;
 

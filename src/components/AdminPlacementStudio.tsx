@@ -106,12 +106,14 @@ export const AdminPlacementStudio: React.FC<AdminPlacementStudioProps> = ({
   const bgImgRef = useRef<HTMLImageElement | null>(null);
   const [bgLoaded, setBgLoaded] = useState<boolean>(false);
 
-  // Sync placements when active race changes
+  // Sync placements when active race changes or race placements update
   useEffect(() => {
     if (activeRace.placements && Object.keys(activeRace.placements).length > 0) {
       setPlacements(activeRace.placements);
+    } else {
+      setPlacements(DEFAULT_NGHE_AN_PLACEMENTS);
     }
-  }, [activeRace.id]);
+  }, [activeRace.id, activeRace.placements]);
 
   // Handle Login
   const handleLogin = (e: React.FormEvent) => {

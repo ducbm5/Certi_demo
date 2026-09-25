@@ -18,39 +18,36 @@ export interface CreateRacePayload {
 }
 
 /**
- * Lấy danh sách toàn bộ các giải đấu từ localStorage và static config
+ * Lấy danh sách toàn bộ các giải đấu từ static bundled config và localStorage
+ * Ưu tiên các file JSON tĩnh trong thư mục public/races/ trước
  */
 export function getLocalRaces(): Race[] {
-  if (typeof window === 'undefined') return RACES.map(ensureRaceRunners);
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_RACES);
-    if (raw) {
-      const parsed: Race[] = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map(ensureRaceRunners);
-      }
-    }
-  } catch (err) {
-    console.warn('Lỗi đọc danh sách giải từ localStorage:', err);
-  }
   return RACES.map(ensureRaceRunners);
 }
 
 /**
- * Tải danh sách giải đấu từ backend API (/api/races)
+ * Tải danh sách giải đấu từ file tĩnh races-data.json hoặc backend API (/api/races)
+ * Hoàn toàn chạy được trên Vercel / GitHub Pages tĩnh không cần server!
  */
 export async function fetchAllRaces(): Promise<Race[]> {
+  // 1. Thử tải file tĩnh public/races-data.json (hoạt động 100% trên Vercel không cần Node.js backend)
+  try {
+    const staticResp = await fetch('/races-data.json?t=' + Date.now());
+    if (staticResp.ok) {
+      const staticData: Race[] = await staticResp.json();
+      if (Array.isArray(staticData) && staticData.length > 0) {
+        return staticData.map(ensureRaceRunners);
+      }
+    }
+  } catch {}
+
+  // 2. Thử gọi API backend nếu đang chạy local server
   try {
     const resp = await fetch('/api/races');
     if (resp.ok) {
       const data: Race[] = await resp.json();
       if (Array.isArray(data) && data.length > 0) {
-        const fullRaces = data.map(ensureRaceRunners);
-        // Đồng bộ vào localStorage
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEY_RACES, JSON.stringify(fullRaces));
-        }
-        return fullRaces;
+        return data.map(ensureRaceRunners);
       }
     }
   } catch (err) {
@@ -63,28 +60,55 @@ export async function fetchAllRaces(): Promise<Race[]> {
  * Phân giải giải đấu dựa trên đường dẫn URL (pathname, hash, query)
  */
 export function resolveRaceFromPath(pathStr: string, raceList: Race[] = getLocalRaces()): Race {
-  if (!pathStr) return ensureRaceRunners(raceList[0] || DEFAULT_RACE);
+  if (!pathStr || raceList.length === 0) return ensureRaceRunners(raceList[0] || DEFAULT_RACE);
 
   const clean = pathStr.toLowerCase();
 
-  // Kiểm tra query ?race=slug
-  const queryMatch = clean.match(/[?&]race=([a-z0-9_-]+)/);
+  const normalizeKey = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/^race_api_/, '')
+      .replace(/\.json$/, '')
+      .replace(/[^a-z0-9]/g, '');
+
+  const matchRace = (candidate: string): Race | undefined => {
+    if (!candidate || candidate === 'admin' || candidate === 'api') return undefined;
+    const cleanCand = candidate.replace(/^race_api_/, '').replace(/\.json$/, '');
+    const normCand = normalizeKey(candidate);
+
+    return raceList.find((r) => {
+      const rSlug = r.slug.toLowerCase();
+      const rId = r.id.toLowerCase();
+      const rCode = (r.code || '').toLowerCase();
+      return (
+        rSlug === cleanCand ||
+        rId === cleanCand ||
+        rCode === cleanCand ||
+        normalizeKey(rSlug) === normCand ||
+        normalizeKey(rId) === normCand ||
+        normalizeKey(r.name) === normCand
+      );
+    });
+  };
+
+  // 1. Kiểm tra query ?race=slug hoặc ?r=slug
+  const queryMatch = clean.match(/[?&](?:race|r)=([a-z0-9_.-]+)/);
   if (queryMatch && queryMatch[1]) {
-    const found = raceList.find((r) => r.slug.toLowerCase() === queryMatch[1] || r.id.toLowerCase() === queryMatch[1]);
+    const found = matchRace(queryMatch[1]);
     if (found) return ensureRaceRunners(found);
   }
 
-  // Kiểm tra hash #slug
-  const hashMatch = clean.match(/#([a-z0-9_-]+)/);
-  if (hashMatch && hashMatch[1] && hashMatch[1] !== 'admin') {
-    const found = raceList.find((r) => r.slug.toLowerCase() === hashMatch[1] || r.id.toLowerCase() === hashMatch[1]);
+  // 2. Kiểm tra hash #slug
+  const hashMatch = clean.match(/#([a-z0-9_.-]+)/);
+  if (hashMatch && hashMatch[1]) {
+    const found = matchRace(hashMatch[1]);
     if (found) return ensureRaceRunners(found);
   }
 
-  // Kiểm tra pathname /ha-long-2026 hoặc /vm-ha-long-2026
+  // 3. Kiểm tra pathname /ha-long-2026 hoặc /vnexpress-marathon-grand-tour-nghe-an-2026
   const pathname = clean.split('?')[0].split('#')[0].replace(/^\/+|\/+$/g, '');
-  if (pathname && pathname !== 'admin') {
-    const found = raceList.find((r) => r.slug.toLowerCase() === pathname || r.id.toLowerCase() === pathname);
+  if (pathname) {
+    const found = matchRace(pathname);
     if (found) return ensureRaceRunners(found);
   }
 

@@ -282,41 +282,8 @@ async function startServer() {
     // Nếu thư mục public/races/ có file, danh sách file này chính là nguồn dữ liệu chuẩn
     if (fileRaces.length > 0) {
       finalList = fileRaces;
-    } else if (fs.existsSync(racesFile)) {
-      // Nếu thư mục rỗng, fallback về races-data.json nếu có
-      try {
-        const content = fs.readFileSync(racesFile, 'utf8');
-        finalList = JSON.parse(content);
-      } catch {
-        finalList = [];
-      }
-    }
-
-    // Fallback mặc định chỉ khi cả 2 nguồn đều hoàn toàn rỗng
-    if (!Array.isArray(finalList) || finalList.length === 0) {
-      finalList = [
-        {
-          id: 'nghe-an-2026',
-          slug: 'nghe-an-2026',
-          code: 'NA26',
-          name: 'VnExpress Marathon Grand Tour Nghe An 2026',
-          shortName: 'Grand Tour Nghe An 2026',
-          city: 'TP. Vinh',
-          province: 'Nghệ An',
-          locationFull: 'TP. Vinh, Nghệ An',
-          date: '13/09/2026',
-          officialUrl: 'https://vm.vnexpress.net/nghe-an-2026',
-          defaultLogoUrl: '/race_logo.png',
-          defaultBgUrl: '/NA26.png',
-          accentColor: '#0369a1',
-          themeBadgeBg: 'bg-sky-50 text-sky-700 border-sky-200/80',
-          themeDotBg: 'bg-sky-600',
-          storageKeyPrefix: 'vm_nghean',
-          appsScriptUrl:
-            'https://script.google.com/macros/s/AKfycbwwY2MgGaURMrB20UHGVvUZ3INSOrkd8jIQok1JpnDTWMzblecdDOdDTn7qtrbtPPzquw/exec?key=ducbm900966559155',
-          description: 'Tra cứu kết quả & Chứng nhận điện tử VnExpress Marathon Grand Tour Nghe An 2026',
-        },
-      ];
+    } else {
+      finalList = [];
     }
 
     // Đồng bộ lại file races-data.json với danh sách thực tế hiện tại
@@ -533,9 +500,6 @@ async function startServer() {
       }
 
       const raceId = req.params.id;
-      if (raceId === 'nghe-an-2026') {
-        return res.status(400).json({ error: 'Không thể xoá giải đấu mặc định Nghệ An 2026.' });
-      }
 
       const racesFile = path.join(process.cwd(), 'public', 'races-data.json');
       if (fs.existsSync(racesFile)) {

@@ -95,42 +95,11 @@ export default function App() {
   });
   const [isLoadingRunners, setIsLoadingRunners] = useState<boolean>(false);
   const [config, setConfig] = useState<CertificateConfig>(() => {
-    try {
-      const saved = localStorage.getItem(`vm_certificate_config_${activeRace.id}`) || localStorage.getItem('vm_certificate_config');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const bg =
-          parsed.customBgDataUrl &&
-          parsed.customBgDataUrl.includes('NA26') &&
-          !parsed.customBgDataUrl.includes('QN26') &&
-          !parsed.customBgDataUrl.includes('quynhon')
-            ? parsed.customBgDataUrl
-            : '/NA26.png';
-        return {
-          ...DEFAULT_CONFIG,
-          ...parsed,
-          bgMode: 'custom',
-          customBgDataUrl: bg,
-          nameY: typeof parsed.nameY === 'number' ? parsed.nameY : 32.84,
-          distanceY: typeof parsed.distanceY === 'number' ? parsed.distanceY : 36.63,
-          statsY: typeof parsed.statsY === 'number' ? parsed.statsY : 48.2,
-          statsLineSpacing: typeof parsed.statsLineSpacing === 'number' ? parsed.statsLineSpacing : 1.25,
-          nameColor: '#042738',
-          distanceColor: '#042738',
-          showDistanceUnderline: false,
-          statsLabelColor: '#FFFFFF',
-          statsValueColor: '#fff100',
-          showStatsCard: false,
-          statsLayout: 'vertical',
-        };
-      }
-    } catch {
-      // ignore
-    }
     return {
       ...DEFAULT_CONFIG,
       bgMode: 'custom',
-      customBgDataUrl: '/NA26.png',
+      customBgDataUrl: activeRace.defaultBgUrl || '/race_logo.png',
+      placements: activeRace.placements || DEFAULT_NGHE_AN_PLACEMENTS,
     };
   });
 
@@ -178,39 +147,29 @@ export default function App() {
     loadServerDefaults();
   }, []);
 
-  // Proactive cleanup of legacy Quy Nhon / QN26 settings from localStorage
+  // Proactive cleanup of legacy race caches from localStorage
   useEffect(() => {
     try {
+      localStorage.removeItem('vm_custom_races_list_v1');
+      localStorage.removeItem('marathon_admin_custom_races');
+      localStorage.removeItem('active_race_id');
       localStorage.removeItem('vm_certificate_config_quy-nhon-2026');
       localStorage.removeItem('vm_quynhon_datasource_settings');
-      localStorage.removeItem('vm_quynhon_runners_cache');
-
-      const cfgKeys = ['vm_certificate_config', 'vm_certificate_config_nghe-an-2026'];
-      for (const k of cfgKeys) {
-        const item = localStorage.getItem(k);
-        if (item) {
-          try {
-            const parsed = JSON.parse(item);
-            let changed = false;
-            if (parsed.bgMode !== 'custom') {
-              parsed.bgMode = 'custom';
-              changed = true;
-            }
-            if (!parsed.customBgDataUrl || !parsed.customBgDataUrl.includes('NA26')) {
-              parsed.customBgDataUrl = '/NA26.png';
-              changed = true;
-            }
-            if (changed) {
-              localStorage.setItem(k, JSON.stringify(parsed));
-            }
-          } catch {}
-        }
-      }
-
-      // Purge any stored background images from previous sessions
-      localStorage.removeItem('custom_certificate_background');
+      localStorage.removeItem('vm_certificate_config');
+      localStorage.removeItem('vm_nghean_certificate_placements_v2');
+      localStorage.removeItem('vm_nghean_certificate_placements');
     } catch {}
   }, []);
+
+  // Update placements and config whenever activeRace changes
+  useEffect(() => {
+    const targetPlacements = activeRace.placements || DEFAULT_NGHE_AN_PLACEMENTS;
+    setConfig((prev) => ({
+      ...prev,
+      placements: targetPlacements,
+      customBgDataUrl: activeRace.defaultBgUrl || prev.customBgDataUrl,
+    }));
+  }, [activeRace.id, activeRace.placements, activeRace.defaultBgUrl]);
 
   // Switch active race and update URL path without full reload
   const handleSelectRace = useCallback((race: Race) => {
