@@ -269,10 +269,15 @@ export const CertificateCanvas: React.FC<CertificateCanvasProps> = ({
       const pImg = new Image();
       pImg.crossOrigin = 'anonymous';
 
-      // Use proxy if needed or direct
-      const srcUrl = personalPhotoUrl.startsWith('http://') || personalPhotoUrl.startsWith('https://')
-        ? `/api/proxy-image?url=${encodeURIComponent(personalPhotoUrl)}`
-        : personalPhotoUrl;
+      // On static servers, googleusercontent, data URLs and local assets load directly with CORS
+      const isDirectOrigin =
+        personalPhotoUrl.startsWith('data:') ||
+        personalPhotoUrl.startsWith('/') ||
+        personalPhotoUrl.includes('googleusercontent.com');
+
+      const srcUrl = isDirectOrigin
+        ? personalPhotoUrl
+        : `/api/proxy-image?url=${encodeURIComponent(personalPhotoUrl)}`;
 
       pImg.src = srcUrl;
       pImg.onload = () => {

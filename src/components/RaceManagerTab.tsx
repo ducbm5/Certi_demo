@@ -280,7 +280,8 @@ export const RaceManagerTab: React.FC<RaceManagerTabProps> = ({
 
   // Kiểm tra kết nối thử nghiệm đến Script Ảnh Thi Đấu (Cột BIB & IMG)
   const handleTestPhotosScript = async () => {
-    if (!formPhotosScriptUrl.trim()) {
+    const scriptUrl = formPhotosScriptUrl.trim();
+    if (!scriptUrl) {
       setPhotosScriptTestResult({
         success: false,
         message: 'Vui lòng nhập đường link Google Apps Script ảnh thi đấu trước khi kiểm tra.',
@@ -290,12 +291,59 @@ export const RaceManagerTab: React.FC<RaceManagerTabProps> = ({
     setIsTestingPhotosScript(true);
     setPhotosScriptTestResult(null);
     try {
-      const resp = await fetch(`/api/race-photos?url=${encodeURIComponent(formPhotosScriptUrl.trim())}`);
-      const data = await resp.json();
-      if (!resp.ok) {
-        throw new Error(data.error || `HTTP ${resp.status}`);
+      let data: any = null;
+
+      // 1. Thử gọi trực tiếp từ trình duyệt (Client-Side Static)
+      try {
+        const directResp = await fetch(scriptUrl, {
+          redirect: 'follow',
+          headers: { 'Accept': 'application/json, text/plain, */*' },
+        });
+        if (directResp.ok) {
+          const text = await directResp.text();
+          const trimmed = text.trim();
+          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            data = JSON.parse(trimmed);
+          }
+        }
+      } catch (directErr) {
+        console.warn('Lỗi gọi trực tiếp test script ảnh:', directErr);
       }
-      const total = data.total || (Array.isArray(data.data) ? data.data.length : (data.photos ? data.photos.length : 0));
+
+      // 2. Thử qua proxy nội bộ nếu có
+      if (!data) {
+        try {
+          const resp = await fetch(`/api/race-photos?url=${encodeURIComponent(scriptUrl)}`);
+          if (resp.ok) {
+            const text = await resp.text();
+            if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+              data = JSON.parse(text.trim());
+            }
+          }
+        } catch {}
+      }
+
+      // 3. Fallback qua CORS proxy
+      if (!data) {
+        try {
+          const corsProxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(scriptUrl)}`;
+          const corsResp = await fetch(corsProxy);
+          if (corsResp.ok) {
+            const text = await corsResp.text();
+            if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+              data = JSON.parse(text.trim());
+            }
+          }
+        } catch {}
+      }
+
+      if (!data) {
+        throw new Error('Không thể kết nối hoặc nhận phản hồi JSON từ Google Apps Script.');
+      }
+
+      const total =
+        data.total ||
+        (Array.isArray(data.data) ? data.data.length : data.photos ? data.photos.length : 0);
       setPhotosScriptTestResult({
         success: true,
         count: total,

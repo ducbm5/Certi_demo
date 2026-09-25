@@ -124,8 +124,13 @@ const memoryPhotosCache: Record<string, string[]> = {};
 
 /**
  * Lấy danh sách ảnh thi đấu của vận động viên theo số BIB
+ * Thiết kế chạy 100% Client-Side Static (không phụ thuộc serverless hay backend proxy)
  */
-export async function getRunnerRacePhotos(bib: string, race?: Race): Promise<string[]> {
+export async function getRunnerRacePhotos(
+  bib: string,
+  race?: Race,
+  runnerPhotoUrl?: string
+): Promise<string[]> {
   const cleanBib = (bib || '').trim().toLowerCase();
   if (!cleanBib) return [];
 
@@ -133,13 +138,12 @@ export async function getRunnerRacePhotos(bib: string, race?: Race): Promise<str
   // Phùng Hữu Thanh (90110) -> ['/1.jpg']
   // Yuki Yokota (61137)     -> ['/2.jpg']
   // Ilyina Iryna (52535)    -> ['/3.jpg']
-  // Luôn trả về đúng ảnh mẫu tương ứng, không gọi truy vấn ngầm Google Apps Script
   const demoPhoto = getDemoPhoto(cleanBib);
   if (demoPhoto) {
     return [demoPhoto];
   }
 
-  const raceKey = race?.id || 'default';
+  const raceKey = race?.id || race?.slug || 'default';
   const cacheKey = `${raceKey}_${cleanBib}`;
 
   // 1. Kiểm tra cache trong bộ nhớ
@@ -160,44 +164,128 @@ export async function getRunnerRacePhotos(bib: string, race?: Race): Promise<str
     }
   } catch {}
 
-  // 3. Nếu có link Google Apps Script chuyên lấy ảnh cho giải này
+  // 3. Chuẩn bị danh sách ảnh khởi đầu từ runnerPhotoUrl (nếu Google Sheet có cột Ảnh/Photo)
+  const initialPhotos: string[] = [];
+  if (runnerPhotoUrl) {
+    const pPieces = runnerPhotoUrl.split(/[\n,;]+/);
+    for (const p of pPieces) {
+      const trimmed = p.trim();
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        initialPhotos.push(getDirectGoogleDriveImageUrl(trimmed) || trimmed);
+      }
+    }
+  }
+
+  // 4. Nếu có link Google Apps Script ảnh thi đấu
   const photosUrl = race?.photosScriptUrl?.trim() || 'https://script.google.com/macros/s/AKfycbyUr1QYj9Eyp60HaDLhXJINbr8Yozt3TXMRlPHpJ7QWhpkK6D4D_ZGMhW5dUerljLT3/exec';
   if (photosUrl) {
     try {
-      // Gọi qua backend proxy hoặc trực tiếp để bypass CORS
-      const proxyEndpoint = `/api/race-photos?url=${encodeURIComponent(photosUrl)}&bib=${encodeURIComponent(cleanBib)}`;
-      const resp = await fetch(proxyEndpoint);
-      if (resp.ok) {
-        const json = await resp.json();
-        let extractedPhotos: string[] = [];
+      let rawText = '';
 
-        if (Array.isArray(json.photos)) {
-          extractedPhotos = json.photos;
-        } else if (Array.isArray(json)) {
-          extractedPhotos = json.map((item: any) => typeof item === 'string' ? item : item.img || item.url).filter(Boolean);
-        } else if (json.photosByBib && json.photosByBib[cleanBib]) {
-          extractedPhotos = json.photosByBib[cleanBib];
+      // Ưu tiên số 1 (Pure Static): Gọi trực tiếp từ trình duyệt tới Google Apps Script
+      // Vì Google Apps Script Web App trả về header Access-Control-Allow-Origin: *
+      try {
+        const directUrl = new URL(photosUrl);
+        directUrl.searchParams.set('bib', cleanBib);
+
+        const directResp = await fetch(directUrl.toString(), {
+          redirect: 'follow',
+          headers: {
+            'Accept': 'application/json, text/plain, */*',
+          },
+        });
+        if (directResp.ok) {
+          rawText = await directResp.text();
         }
+      } catch (directErr) {
+        console.warn('Lỗi gọi trực tiếp Apps Script (có thể do CORS hoặc mạng):', directErr);
+      }
 
-        // Chuẩn hoá link Google Drive và tách các URL phân tách bằng dấu phẩy
-        const cleanList: string[] = [];
-        for (const raw of extractedPhotos) {
-          if (!raw) continue;
-          const parts = String(raw).split(/[\n,;]+/);
-          for (const p of parts) {
-            const trimmed = p.trim();
-            if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-              cleanList.push(getDirectGoogleDriveImageUrl(trimmed) || trimmed);
+      // Ưu tiên số 2 (Fallback cho static host không có backend): Dùng Public CORS Proxy
+      if (!rawText || (!rawText.trim().startsWith('{') && !rawText.trim().startsWith('['))) {
+        try {
+          const directUrl = new URL(photosUrl);
+          directUrl.searchParams.set('bib', cleanBib);
+          const corsProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(directUrl.toString())}`;
+          const corsResp = await fetch(corsProxyUrl);
+          if (corsResp.ok) {
+            rawText = await corsResp.text();
+          }
+        } catch {}
+      }
+
+      // Ưu tiên số 3 (Nếu môi trường có sẵn endpoint proxy /api/race-photos)
+      if (!rawText || (!rawText.trim().startsWith('{') && !rawText.trim().startsWith('['))) {
+        try {
+          const proxyResp = await fetch(`/api/race-photos?url=${encodeURIComponent(photosUrl)}&bib=${encodeURIComponent(cleanBib)}`);
+          if (proxyResp.ok) {
+            const pText = await proxyResp.text();
+            if (pText.trim().startsWith('{') || pText.trim().startsWith('[')) {
+              rawText = pText;
             }
+          }
+        } catch {}
+      }
+
+      // Bóc tách dữ liệu JSON hoặc TSV
+      if (rawText) {
+        let json: any = null;
+        try {
+          json = JSON.parse(rawText.trim());
+        } catch {
+          // Xử lý định dạng TSV text (BIB \t IMG)
+          const lines = rawText.trim().split(/\r?\n/);
+          const list: string[] = [];
+          for (let i = 1; i < lines.length; i++) {
+            const parts = lines[i].split('\t');
+            if (parts.length >= 2 && parts[0].trim().toLowerCase() === cleanBib) {
+              list.push(parts[1].trim());
+            }
+          }
+          if (list.length > 0) {
+            json = { photos: list };
           }
         }
 
-        if (cleanList.length > 0) {
-          memoryPhotosCache[cacheKey] = cleanList;
-          try {
-            sessionStorage.setItem(`vm_race_photos_${cacheKey}`, JSON.stringify(cleanList));
-          } catch {}
-          return cleanList;
+        if (json) {
+          let extractedPhotos: string[] = [];
+
+          if (Array.isArray(json.photos)) {
+            extractedPhotos = json.photos;
+          } else if (Array.isArray(json.data)) {
+            extractedPhotos = json.data
+              .filter((item: any) => !item.bib || String(item.bib).toLowerCase() === cleanBib)
+              .map((item: any) => typeof item === 'string' ? item : item.img || item.url)
+              .filter(Boolean);
+          } else if (Array.isArray(json)) {
+            extractedPhotos = json.map((item: any) => typeof item === 'string' ? item : item.img || item.url).filter(Boolean);
+          } else if (json.photosByBib && json.photosByBib[cleanBib]) {
+            extractedPhotos = json.photosByBib[cleanBib];
+          }
+
+          // Chuẩn hoá link Google Drive và tách các URL phân tách bằng dấu phẩy
+          const cleanList: string[] = [...initialPhotos];
+          for (const raw of extractedPhotos) {
+            if (!raw) continue;
+            const parts = String(raw).split(/[\n,;]+/);
+            for (const p of parts) {
+              const trimmed = p.trim();
+              if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+                const directImg = getDirectGoogleDriveImageUrl(trimmed) || trimmed;
+                if (!cleanList.includes(directImg)) {
+                  cleanList.push(directImg);
+                }
+              }
+            }
+          }
+
+          if (cleanList.length > 0) {
+            memoryPhotosCache[cacheKey] = cleanList;
+            try {
+              sessionStorage.setItem(`vm_race_photos_${cacheKey}`, JSON.stringify(cleanList));
+            } catch {}
+            return cleanList;
+          }
         }
       }
     } catch (e) {
@@ -205,7 +293,13 @@ export async function getRunnerRacePhotos(bib: string, race?: Race): Promise<str
     }
   }
 
-  // 4. Fallback vào demo race photos được cấu hình trong giải hoặc mockRunners
+  // Nếu ban đầu đã có ảnh từ Google Sheet (runner.photoUrl)
+  if (initialPhotos.length > 0) {
+    memoryPhotosCache[cacheKey] = initialPhotos;
+    return initialPhotos;
+  }
+
+  // 5. Fallback vào demo race photos được cấu hình trong giải hoặc mockRunners
   const demoMap = race?.demoRacePhotos || DEMO_RACE_PHOTOS;
   if (demoMap && demoMap[cleanBib]) {
     const list = demoMap[cleanBib];

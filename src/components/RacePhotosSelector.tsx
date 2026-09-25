@@ -26,7 +26,7 @@ export const RacePhotosSelector: React.FC<RacePhotosSelectorProps> = ({
     async function loadPhotos() {
       setIsLoading(true);
       try {
-        const list = await getRunnerRacePhotos(runner.bib, activeRace);
+        const list = await getRunnerRacePhotos(runner.bib, activeRace, runner.photoUrl);
         if (!isCancelled) {
           setPhotos(list);
         }
@@ -41,7 +41,7 @@ export const RacePhotosSelector: React.FC<RacePhotosSelectorProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [runner.bib, activeRace?.id, activeRace?.photosScriptUrl]);
+  }, [runner.bib, runner.photoUrl, activeRace?.id, activeRace?.photosScriptUrl]);
 
   // Box ảnh thi đấu chỉ hiển thị khi đã load xong và có ảnh trong hệ thống.
   // Hoàn toàn ẩn khi đang load ngầm để người dùng không nhận biết quá trình tải ngầm.

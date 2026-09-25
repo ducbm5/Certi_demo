@@ -24,6 +24,7 @@ export interface StaticRaceApiDefinition {
   themeDotBg?: string;
   storageKeyPrefix?: string;
   appsScriptUrl?: string;
+  photosScriptUrl?: string;
   description?: string;
   placements: CertificatePlacements;
   backgroundDataUrl?: string;
@@ -74,6 +75,7 @@ export function exportRaceStaticApi(
     themeDotBg: race.themeDotBg || 'bg-sky-600',
     storageKeyPrefix: race.storageKeyPrefix || `vm_${cleanSlug.replace(/[^a-z0-9]/g, '')}`,
     appsScriptUrl: race.appsScriptUrl || '',
+    photosScriptUrl: race.photosScriptUrl || '',
     description: race.description || `Tra cứu kết quả & Chứng nhận điện tử ${race.name}`,
     placements: activePlacements,
   };
@@ -140,6 +142,7 @@ export async function importRaceFromStaticApi(file: File): Promise<{
           themeDotBg: item.themeDotBg || 'bg-sky-600',
           storageKeyPrefix: item.storageKeyPrefix || `vm_${cleanSlug.replace(/[^a-z0-9]/g, '')}`,
           appsScriptUrl: item.appsScriptUrl || '',
+          photosScriptUrl: item.photosScriptUrl || '',
           description: item.description || '',
         };
 
